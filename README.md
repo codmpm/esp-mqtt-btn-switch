@@ -19,7 +19,7 @@ The serial console is left open to debug and check the WiFi connection. Baudrate
 Created with
 - Arduino 1.6.12 (https://www.arduino.cc/)
 - ESP8266 board definition 2.3.0 (https://github.com/esp8266/Arduino)
-- PubSubClient 2.6.0 by @knolleary (https://github.com/knolleary/pubsubclient)
+- PubSubClient 2.6.0 by Nick O'Leary (https://github.com/knolleary/pubsubclient)
 
 ## Misc.
 Bear with me as C/C++ is not my first language. Any suggestions and pull requests are welcome.
