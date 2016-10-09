@@ -12,7 +12,7 @@ The current state (`1`/`0`) of the relay is published to `<topic-prefix>state`. 
 To change the switch' state publish `1` or `0` to `<topic-prefix>do`.
 
 ## Config
-Change the settings at the top of the .ino-file corresponding to your needs. Ensure that you choose a unique mqtt client id. I haven't tested this without authentication against the broker.
+Change the settings at the top of the .ino-file corresponding to your needs. Ensure that you choose a unique mqtt client id. If you do not need credentials just set user and password to an empty string.
 
 The serial console is left open to debug and check the WiFi connection. Baudrate 115200.
 

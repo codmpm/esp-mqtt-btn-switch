@@ -64,8 +64,7 @@ void setup() {
   //put in mqtt prefix
   sprintf(mqttTopicState, "%sstate", mqttTopicPrefix);
   sprintf(mqttTopicStatus, "%sstatus", mqttTopicPrefix);
-  sprintf(mqttTopicDo, "%sstatus", mqttTopicPrefix);
-
+  sprintf(mqttTopicDo, "%sdo", mqttTopicPrefix);
 
   setup_wifi();
   client.setServer(mqttServer, 1883);
@@ -184,6 +183,9 @@ void reconnect() {
 
       // ... and (re)subscribe
       client.subscribe(mqttTopicDo);
+
+      Serial.print("subscribed to ");
+      Serial.println(mqttTopicDo);
 
     } else {
       Serial.print("failed, rc=");
