@@ -153,7 +153,7 @@ void setup_wifi() {
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
-  WiFi.mode(WIFI_STA); //disbale AP mode, only station
+  WiFi.mode(WIFI_STA); //disable AP mode, only station
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
