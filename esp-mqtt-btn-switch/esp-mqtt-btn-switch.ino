@@ -42,11 +42,18 @@ const char* mqttTopicPrefix = "<mqtt-topic-prefix>";
 #define DHTTYPE DHT22 //DHT11, DHT21, DHT22
 
 // I/O
-const int   btnPin = 14; //IO14 on WiFi Relay
+const int btnPin = 14; //IO14 on WiFi Relay
+
+#ifdef USE_DHT
 const int   dhtPin = 5;  //IO04 on WiFi Relay
-const int   dhtInterval = 60000; //millis
+const int dhtInterval = 60000; //millis
 //---------
 
+char mqttTopicTemp[64];
+char mqttTopicHum[64];
+
+long lastDHTTime = 0;
+#endif
 
 // internal vars
 WiFiClient espClient;
@@ -57,14 +64,8 @@ char mqttTopicStatus[64];
 char mqttTopicDo[64];
 char mqttTopicIp[64];
 
-#ifdef USE_DHT
-char mqttTopicTemp[64];
-char mqttTopicHum[64];
-#endif
-
 long lastReconnectAttempt = 0; //For the non blocking mqtt reconnect (in millis)
 long lastDebounceTime = 0; // Holds the last time debounce was evaluated (in millis).
-long lastDHTTime = 0;
 const int debounceDelay = 80; // The delay threshold for debounce checking.
 
 int onoff = false; //is relay on or off
@@ -93,10 +94,9 @@ void setup() {
   attachInterrupt(btnPin, onChangeButton, CHANGE);
 
 #ifdef USE_DHT
+  //initialize DHT
   dht.begin();
 #endif
-
-
 
   //put in mqtt prefix
   sprintf(mqttTopicState, "%sstate", mqttTopicPrefix);
@@ -120,22 +120,25 @@ void setup() {
 
   ArduinoOTA.onStart([]() {
     String type;
-    if (ArduinoOTA.getCommand() == U_FLASH)
+    if (ArduinoOTA.getCommand() == U_FLASH) {
       type = "sketch";
-    else // U_SPIFFS
+    } else { // U_SPIFFS
       type = "filesystem";
-
+    }
     // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
     Serial.println("Start updating " + type);
   });
+  
   ArduinoOTA.onEnd([]() {
     Serial.println("\nEnd");
     delay(1000);
     ESP.restart();
   });
+  
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
   });
+  
   ArduinoOTA.onError([](ota_error_t error) {
     Serial.printf("Error[%u]: ", error);
     if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
@@ -145,7 +148,6 @@ void setup() {
     else if (error == OTA_END_ERROR) Serial.println("End Failed");
   });
   ArduinoOTA.begin();
-
 
   Serial.println("ready...");
 }
@@ -165,20 +167,20 @@ void loop() {
   }
   client.loop();
 
+  //handle state change
   if (onoff != wantedState) {
     doOnOff();
   }
 
 #ifdef USE_DHT
+  //check DHT
   checkDHT();
 #endif
 
+  //handle OTA
   ArduinoOTA.handle();
 
 }
-
-
-
 
 
 
@@ -271,13 +273,10 @@ void checkDHT() {
     }
 
     lastDHTTime = millis();
-
   }
-
 
 }
 #endif
-
 
 void setup_wifi() {
 
@@ -295,8 +294,6 @@ void setup_wifi() {
     delay(500);
     Serial.print(".");
   }
-
-
 
   Serial.println("");
   Serial.println("WiFi connected");
