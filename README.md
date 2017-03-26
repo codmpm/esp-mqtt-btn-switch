@@ -21,7 +21,7 @@ To change the switch' state, publish `1` or `0` to `<topic-prefix>do`.
 
 The temperature and humidity values (if used) will be read every 60 seconds (configurable), retained and put to this topics:
 
-* `<topic-prefix>temperate`
+* `<topic-prefix>temperature`
 * `<topic-prefix>humidity`
 
 
