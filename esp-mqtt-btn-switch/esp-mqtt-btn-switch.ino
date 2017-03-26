@@ -28,14 +28,14 @@
 
 //--------- Configuration
 // WiFi
-  const char* ssid = "<your-wifi-ssid>";
-  const char* password = "<your-wifi-key>";
+const char* ssid = "<your-wifi-ssid>";
+const char* password = "<your-wifi-key>";
 
-  const char* mqttServer = "<mqtt-broker-ip-or-host>";
-  const char* mqttUser = "<mqtt-user>";
-  const char* mqttPass = "<mqtt-password>";
-  const char* mqttClientName = "<mqtt-client-id>"; //will also be used hostname and OTA name
-  const char* mqttTopicPrefix = "<mqtt-topic-prefix>";
+const char* mqttServer = "<mqtt-broker-ip-or-host>";
+const char* mqttUser = "<mqtt-user>";
+const char* mqttPass = "<mqtt-password>";
+const char* mqttClientName = "<mqtt-client-id>"; //will also be used hostname and OTA name
+const char* mqttTopicPrefix = "<mqtt-topic-prefix>";
 
 
 //#define USE_DHT //comment in if DHT should be used
@@ -256,7 +256,7 @@ void checkDHT() {
       Serial.println(" °C");
 
     }
-    
+
     // Get humidity event and print its value.
     dht.humidity().getEvent(&event);
     if (isnan(event.relative_humidity)) {
