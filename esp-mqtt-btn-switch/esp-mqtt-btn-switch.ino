@@ -9,6 +9,9 @@
 // send 1/0 to <mqttTopicPrefix>do to switch
 
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 #include <PubSubClient.h>
 
 
@@ -19,14 +22,13 @@ const char* password = "<your-wifi-key>";
 
 const char* mqttServer = "<mqtt-broker-ip-or-host>";
 const char* mqttUser = "<mqtt-user>";
-const char* mqttPass = "<mqtt-password>";
-const char* mqttClientName = "<mqtt-client-id>";
+const char* mqttPass = "<mqtt-password>"; 
+const char* mqttClientName = "<mqtt-client-id>"; //will also be used hostname and OTA name
 const char* mqttTopicPrefix = "<mqtt-topic-prefix>";
 
 // I/O
 const int   btnPin = 14; //IO14 on WiFi Relay
 //---------
-
 
 // internal vars
 WiFiClient espClient;
@@ -35,10 +37,11 @@ PubSubClient client(espClient);
 char mqttTopicState[64];
 char mqttTopicStatus[64];
 char mqttTopicDo[64];
+char mqttTopicIp[64];
 
-
+long lastReconnectAttempt = 0; //For the non blocking mqtt reconnect (in millis)
 long lastDebounceTime = 0; // Holds the last time debounce was evaluated (in millis).
-const int debounceDelay = 50; // The delay threshold for debounce checking.
+const int debounceDelay = 80; // The delay threshold for debounce checking.
 
 int onoff = false; //is relay on or off
 int wantedState = false; //wanted state
@@ -65,23 +68,67 @@ void setup() {
   sprintf(mqttTopicState, "%sstate", mqttTopicPrefix);
   sprintf(mqttTopicStatus, "%sstatus", mqttTopicPrefix);
   sprintf(mqttTopicDo, "%sdo", mqttTopicPrefix);
-
+  sprintf(mqttTopicIp, "%sip", mqttTopicPrefix);
+  
   setup_wifi();
   client.setServer(mqttServer, 1883);
   client.setCallback(mqttCallback);
+
+
+
+  //----------- OTA
+  ArduinoOTA.setHostname(mqttClientName);
+
+  ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH)
+      type = "sketch";
+    else // U_SPIFFS
+      type = "filesystem";
+
+    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+    Serial.println("Start updating " + type);
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+
 
   Serial.println("ready...");
 }
 
 void loop() {
+
+  //handle mqtt connection, non-blocking
   if (!client.connected()) {
-    reconnect();
+    long now = millis();
+    if (now - lastReconnectAttempt > 5000) {
+      lastReconnectAttempt = now;
+      // Attempt to reconnect
+      if (MqttReconnect()) {
+        lastReconnectAttempt = 0;
+      }
+    }
   }
   client.loop();
 
   if (onoff != wantedState) {
     doOnOff();
   }
+
+  ArduinoOTA.handle();
 
 }
 
@@ -148,12 +195,13 @@ void turnOff() {
 void setup_wifi() {
 
   delay(10);
-  
+
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
   WiFi.mode(WIFI_STA); //disable AP mode, only station
+  WiFi.hostname(mqttClientName);
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -161,7 +209,7 @@ void setup_wifi() {
     Serial.print(".");
   }
 
-  
+
 
   Serial.println("");
   Serial.println("WiFi connected");
@@ -170,23 +218,27 @@ void setup_wifi() {
 }
 
 
-void reconnect() {
-  // Loop until we're reconnected
-  while (!client.connected()) {
+bool MqttReconnect() {
+  
+  if (!client.connected()) {
 
     Serial.print("Attempting MQTT connection...");
 
     // Attempt to connect with last will retained
     if (client.connect(mqttClientName, mqttUser, mqttPass, mqttTopicStatus, 1, true, "offline")) {
+      
       Serial.println("connected");
 
       // Once connected, publish an announcement...
+      char curIp[16];
+      sprintf(curIp, "%d.%d.%d.%d", WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
+
       client.publish(mqttTopicStatus, "online", true);
       client.publish(mqttTopicState, ((onoff) ? "1" : "0") , true);
+      client.publish(mqttTopicIp, curIp, true);
 
       // ... and (re)subscribe
       client.subscribe(mqttTopicDo);
-
       Serial.print("subscribed to ");
       Serial.println(mqttTopicDo);
 
@@ -194,10 +246,9 @@ void reconnect() {
       Serial.print("failed, rc=");
       Serial.print(client.state());
       Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
     }
   }
+  return client.connected();
 }
 
 
