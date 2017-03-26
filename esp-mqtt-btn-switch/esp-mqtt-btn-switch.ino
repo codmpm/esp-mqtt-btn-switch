@@ -1,10 +1,12 @@
 // ESP8266 Momentary Standalone Relay Switch with MQTT
-// 2016, Patrik Mayer - patrik.mayer@codm.de
+// 2017, Patrik Mayer - patrik.mayer@codm.de
 //
 // debounce from http://blog.erikthe.red/2015/08/02/esp8266-button-debounce/
 // mqtt client from https://github.com/knolleary/pubsubclient/tree/master/examples/mqtt_esp8266
+// Arduino OTA from https://github.com/esp8266/Arduino/tree/master/libraries/ArduinoOTA
 
 // system state on <mqttTopicPrefix>status
+// system ip on <mqttTopicPrefix>ip
 // current switch state on <mqttTopicPrefix>state
 // send 1/0 to <mqttTopicPrefix>do to switch
 
@@ -17,6 +19,16 @@
 
 //--------- Configuration
 // WiFi
+const char* ssid = "lab";
+const char* password = "q1w2e3r4t5";
+
+const char* mqttServer = "mandark.fritz.box";
+const char* mqttUser = "sensor";
+const char* mqttPass = "sensor";
+const char* mqttClientName = "esp-flur-licht"; //will also be used as hostname and OTA name - must be unique
+const char* mqttTopicPrefix = "sensor/flur-switch/";
+
+/*
 const char* ssid = "<your-wifi-ssid>";
 const char* password = "<your-wifi-key>";
 
@@ -25,10 +37,13 @@ const char* mqttUser = "<mqtt-user>";
 const char* mqttPass = "<mqtt-password>"; 
 const char* mqttClientName = "<mqtt-client-id>"; //will also be used hostname and OTA name
 const char* mqttTopicPrefix = "<mqtt-topic-prefix>";
+*/
 
 // I/O
 const int   btnPin = 14; //IO14 on WiFi Relay
 //---------
+
+#define WIFI_HOSTNAME "%s-%04d" 
 
 // internal vars
 WiFiClient espClient;
@@ -91,6 +106,8 @@ void setup() {
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\nEnd");
+    delay(1000);
+    ESP.restart();
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
