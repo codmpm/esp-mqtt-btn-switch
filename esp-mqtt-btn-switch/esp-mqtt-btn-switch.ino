@@ -4,11 +4,16 @@
 // debounce from http://blog.erikthe.red/2015/08/02/esp8266-button-debounce/
 // mqtt client from https://github.com/knolleary/pubsubclient/tree/master/examples/mqtt_esp8266
 // Arduino OTA from https://github.com/esp8266/Arduino/tree/master/libraries/ArduinoOTA
+// DHT from https://github.com/adafruit/Adafruit_DHT_Unified
 
-// system state on <mqttTopicPrefix>status
-// system ip on <mqttTopicPrefix>ip
+// system state on <mqttTopicPrefix>status (retained)
+// system ip on <mqttTopicPrefix>ip (retained)
 // current switch state on <mqttTopicPrefix>state
-// send 1/0 to <mqttTopicPrefix>do to switch
+// send 1/0 to <mqttTopicPrefix>do to switch (retained)
+
+// if using DHT:
+// temperature on <mqttTopicPrefix>temperate (retained)
+// humidity on <mqttTopicPrefix>humidity (retained)
 
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
@@ -16,34 +21,32 @@
 #include <ArduinoOTA.h>
 #include <PubSubClient.h>
 
+//install Adafruits's DHT_Unified and DHT
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
 
 //--------- Configuration
 // WiFi
-const char* ssid = "lab";
-const char* password = "q1w2e3r4t5";
+  const char* ssid = "<your-wifi-ssid>";
+  const char* password = "<your-wifi-key>";
 
-const char* mqttServer = "mandark.fritz.box";
-const char* mqttUser = "sensor";
-const char* mqttPass = "sensor";
-const char* mqttClientName = "esp-flur-licht"; //will also be used as hostname and OTA name - must be unique
-const char* mqttTopicPrefix = "sensor/flur-switch/";
+  const char* mqttServer = "<mqtt-broker-ip-or-host>";
+  const char* mqttUser = "<mqtt-user>";
+  const char* mqttPass = "<mqtt-password>";
+  const char* mqttClientName = "<mqtt-client-id>"; //will also be used hostname and OTA name
+  const char* mqttTopicPrefix = "<mqtt-topic-prefix>";
 
-/*
-const char* ssid = "<your-wifi-ssid>";
-const char* password = "<your-wifi-key>";
 
-const char* mqttServer = "<mqtt-broker-ip-or-host>";
-const char* mqttUser = "<mqtt-user>";
-const char* mqttPass = "<mqtt-password>"; 
-const char* mqttClientName = "<mqtt-client-id>"; //will also be used hostname and OTA name
-const char* mqttTopicPrefix = "<mqtt-topic-prefix>";
-*/
+//#define USE_DHT //comment in if DHT should be used
+#define DHTTYPE DHT22 //DHT11, DHT21, DHT22
 
 // I/O
 const int   btnPin = 14; //IO14 on WiFi Relay
+const int   dhtPin = 5;  //IO04 on WiFi Relay
+const int   dhtInterval = 60000; //millis
 //---------
 
-#define WIFI_HOSTNAME "%s-%04d" 
 
 // internal vars
 WiFiClient espClient;
@@ -54,13 +57,23 @@ char mqttTopicStatus[64];
 char mqttTopicDo[64];
 char mqttTopicIp[64];
 
+#ifdef USE_DHT
+char mqttTopicTemp[64];
+char mqttTopicHum[64];
+#endif
+
 long lastReconnectAttempt = 0; //For the non blocking mqtt reconnect (in millis)
 long lastDebounceTime = 0; // Holds the last time debounce was evaluated (in millis).
+long lastDHTTime = 0;
 const int debounceDelay = 80; // The delay threshold for debounce checking.
 
 int onoff = false; //is relay on or off
 int wantedState = false; //wanted state
 int debounceState; //internal state for debouncing
+
+#ifdef USE_DHT
+DHT_Unified dht(dhtPin, DHTTYPE);
+#endif
 
 void setup() {
   // Configure the pin mode as an input.
@@ -74,17 +87,28 @@ void setup() {
   digitalWrite(12, HIGH);
   digitalWrite(13, LOW);
 
+  Serial.begin(115200);
+
   // Attach an interrupt to the pin, assign the onChange function as a handler and trigger on changes (LOW or HIGH).
   attachInterrupt(btnPin, onChangeButton, CHANGE);
 
-  Serial.begin(115200);
+#ifdef USE_DHT
+  dht.begin();
+#endif
+
+
 
   //put in mqtt prefix
   sprintf(mqttTopicState, "%sstate", mqttTopicPrefix);
   sprintf(mqttTopicStatus, "%sstatus", mqttTopicPrefix);
   sprintf(mqttTopicDo, "%sdo", mqttTopicPrefix);
   sprintf(mqttTopicIp, "%sip", mqttTopicPrefix);
-  
+
+#ifdef USE_DHT
+  sprintf(mqttTopicTemp, "%stemperature", mqttTopicPrefix);
+  sprintf(mqttTopicHum, "%shumidity", mqttTopicPrefix);
+#endif
+
   setup_wifi();
   client.setServer(mqttServer, 1883);
   client.setCallback(mqttCallback);
@@ -144,6 +168,10 @@ void loop() {
   if (onoff != wantedState) {
     doOnOff();
   }
+
+#ifdef USE_DHT
+  checkDHT();
+#endif
 
   ArduinoOTA.handle();
 
@@ -208,6 +236,48 @@ void turnOff() {
   client.publish(mqttTopicState, "0", true);
 }
 
+#ifdef USE_DHT
+void checkDHT() {
+
+  if (millis() - lastDHTTime > dhtInterval) {
+
+    sensors_event_t event;
+    char dhtBuf[8];
+
+    dht.temperature().getEvent(&event);
+    if (isnan(event.temperature)) {
+      Serial.println("Error reading temperature!");
+    } else {
+      sprintf(dhtBuf, "%.2f", event.temperature);
+      client.publish(mqttTopicTemp, dhtBuf, true);
+
+      Serial.print("Temperature: ");
+      Serial.print(dhtBuf);
+      Serial.println(" °C");
+
+    }
+    
+    // Get humidity event and print its value.
+    dht.humidity().getEvent(&event);
+    if (isnan(event.relative_humidity)) {
+      Serial.println("Error reading humidity!");
+    } else {
+      sprintf(dhtBuf, "%.2f", event.temperature);
+      client.publish(mqttTopicHum, dhtBuf, true);
+
+      Serial.print("Humidity: ");
+      Serial.print(dhtBuf);
+      Serial.println("%");
+    }
+
+    lastDHTTime = millis();
+
+  }
+
+
+}
+#endif
+
 
 void setup_wifi() {
 
@@ -236,14 +306,14 @@ void setup_wifi() {
 
 
 bool MqttReconnect() {
-  
+
   if (!client.connected()) {
 
     Serial.print("Attempting MQTT connection...");
 
     // Attempt to connect with last will retained
     if (client.connect(mqttClientName, mqttUser, mqttPass, mqttTopicStatus, 1, true, "offline")) {
-      
+
       Serial.println("connected");
 
       // Once connected, publish an announcement...
