@@ -6,10 +6,14 @@ It should work on any ESP8266 with a connected relay. The difference will be, th
 
 Connect the push button to `GND` and `GPIO14` to toggle the relay.
 
+After first flashing this sketch, you could update the ESP via [ArduinoOTA](http://esp8266.github.io/Arduino/versions/2.0.0/doc/ota_updates/ota_updates.html). The OTA name is set to the choosen `mqttClienName` which is also used for the ESP-hostname.
+
 ## MQTT
 The current state (`1`/`0`) of the relay is published to `<topic-prefix>state`. The online status (`online`/`offline`) is published to `<topic-prefix>status`. Both topics are retained and the status will be set to `offline` using last will of MQTT.
 
 To change the switch' state, publish `1` or `0` to `<topic-prefix>do`.
+
+The IP of the device is published tp `<topic-prefix>`ip, the mqtt connection is now non-blocking (finally).
 
 ## Config
 Change the settings at the top of the .ino-file corresponding to your needs. Ensure that you choose a unique mqtt client id. If you do not need credentials just set user and password to an empty string.
