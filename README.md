@@ -30,12 +30,19 @@ Change the settings at the top of the .ino-file corresponding to your needs. Ens
 
 The serial console is left open to debug and check the WiFi connection. Baudrate 115200, 8N1.
 
-Created with
+## Problems
+If you get `error: 'class ArduinoOTAClass' has no member named 'getCommand'` comment out the complete `ArduinoOTA.onStart` method. It only puts the OTA-Type to the serial console when OTA is happening, so not realy needed.
+
+Also you can update `ArduinoOTA.cpp` and `ArduinoOTA.h` to the latest master from https://github.com/esp8266/Arduino/tree/master/libraries/ArduinoOTA
+
+
+## Created with
 - Arduino 1.8.1 (https://www.arduino.cc/)
 - ESP8266 board definition 2.3.0 (https://github.com/esp8266/Arduino)
 - PubSubClient 2.6.0 by Nick O'Leary (https://github.com/knolleary/pubsubclient)
 - Arduino OTA 2.3.0 http://esp8266.github.io/Arduino/versions/2.3.0/doc/ota_updates/readme.html
-- Adafruit Unified DHT library https://github.com/adafruit/Adafruit_DHT_Unified
+- Adafruit Unified Sensor library https://github.com/adafruit/Adafruit_DHT_Unified
+- Adafruit DHT library https://github.com/adafruit/DHT-sensor-library
 
 ## Misc.
 Bear with me as C/C++ is not my first language. Any suggestions and pull requests are welcome.
