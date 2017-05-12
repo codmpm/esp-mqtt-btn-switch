@@ -292,7 +292,10 @@ void setup_wifi() {
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
+   Serial.print(".");
+    if (onoff != wantedState) {
+    doOnOff();
+  }
   }
 
   Serial.println("");
