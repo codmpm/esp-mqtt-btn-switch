@@ -2,6 +2,8 @@
 
 This is used to toggle a relay with a push button, using the EX-Store [WiFi-Relay Board](https://ex-store.de/ESP8266-WiFi-Relay-V31). The Switch will work if no WiFi or MQTT is present. I'm using it in combination with a coupling relay to replace a surge switch (Eltako S12-100).
 
+See also the excelent [Espurna Firmware](https://bitbucket.org/xoseperez/espurna) which also supports the ex-store relay board.
+
 It should work on any ESP8266 with a connected relay. The difference will be, that the EX-Store relay board is using a [L9110](http://www.elecrow.com/download/datasheet-l9110.pdf) motor driver which needs two GPIO's to be switched. To change this behaviour simply edit the `turnOn()` or `turnOff()` functions.
 
 Connect the push button to `GND` and `IO14` to toggle the relay. The internal Pull-Up is used.
